@@ -1,5 +1,5 @@
 <h1 align="center">中文智影 | 打造中华文化智能影视助手</h1>
-<img src="./img/logo_1.jpg" alt="logo">
+<img src="./img/logo_1.jpg" alt="logo" height="50%">
 
 ## 一. AI-VIDEO-TOOL
 
