@@ -1,6 +1,6 @@
-<h1 align="center">中文智影 | 打造中华文化智能影视助手</h1>
-<img src="https://socialify.git.ci/LeslinD/zhongwenzhiying/image?font=Inter&language=1&logo=https%3A%2F%2Fs4.aconvert.com%2Fconvert%2Fp3r68-cdx67%2Fazvrw-1j2ik.svg&name=1&owner=1&pattern=Plus&stargazers=1&theme=Light" alt="zhongwenzhiying" width="640" height="320" />
+<img src="https://socialify.git.ci/LeslinD/zhongwenzhiying/image?font=Inter&language=1&logo=https%3A%2F%2Fs4.aconvert.com%2Fconvert%2Fp3r68-cdx67%2Fazvrw-1j2ik.svg&name=1&owner=1&pattern=Plus&stargazers=1&theme=Light" alt="zhongwenzhiying" />
 
+<h1 align="center">中文智影 | 打造中华文化智能影视助手</h1>
 ## 一. AI-VIDEO-TOOL
 
 AI-VIDEO-TOOL是程序的核心模块，采用Python进行编写，作为一种良好的脚本语言，Python保证了良好的可移植性，确保了在主流PC操作系统上（Windows/Linux/MacOS）上均能运行。对于Windows操作系统，不需要客户机上安装任何Python环境，在发布时即可使用Pyinstaller打包发布可执行文件。目前程序的主要功能有三个，分别是向AI提问问答，AI截屏内容识别，实时翻译。下文将逐个解释每个功能的详细细节。
