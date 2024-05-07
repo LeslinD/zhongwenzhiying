@@ -1,5 +1,5 @@
 <h1 align="center">中文智影 | 打造中华文化智能影视助手</h1>
-![logo](https://github.com/LeslinD/zhongwenzhiying/tree/main/img/logo_1.jpg)
+![image](https://github.com/LeslinD/zhongwenzhiying/tree/main/img/logo_1.jpg)
 
 ## 一. AI-VIDEO-TOOL
 
