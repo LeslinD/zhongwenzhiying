@@ -1,5 +1,5 @@
 <h1 align="center">中文智影 | 打造中华文化智能影视助手</h1>
-<img src="./img/logo_1.jpg" alt="logo" style="zoom:33%;">
+![zhongwenzhiying](https://socialify.git.ci/LeslinD/zhongwenzhiying/image?font=Inter&language=1&logo=https%3A%2F%2Fs4.aconvert.com%2Fconvert%2Fp3r68-cdx67%2Fazvrw-1j2ik.svg&name=1&owner=1&pattern=Plus&stargazers=1&theme=Light)
 
 ## 一. AI-VIDEO-TOOL
 
