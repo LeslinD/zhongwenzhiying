@@ -1,4 +1,4 @@
-<img src="https://socialify.git.ci/LeslinD/zhongwenzhiying/image?font=Raleway&language=1&logo=https%3A%2F%2Fs4.aconvert.com%2Fconvert%2Fp3r68-cdx67%2Fazvrw-1j2ik.svg&name=1&owner=1&pattern=Plus&stargazers=1&theme=Light" alt="zhongwenzhiying" />
+<img src="./img/title.png" />
 
 <h1 align="center">中文智影 | 打造中华文化智能影视助手</h1>
 
