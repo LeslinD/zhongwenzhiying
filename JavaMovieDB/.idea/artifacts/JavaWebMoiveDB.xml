@@ -1,0 +1,21 @@
+<component name="ArtifactManager">
+  <artifact type="exploded-war" name="JavaWebMoiveDB">
+    <output-path>$PROJECT_DIR$/out/artifacts/JavaWebMoiveDB</output-path>
+    <root id="root">
+      <element id="directory" name="WEB-INF">
+        <element id="directory" name="classes">
+          <element id="module-output" name="JavaWebMoiveDB" />
+        </element>
+        <element id="directory" name="lib">
+          <element id="file-copy" path="$PROJECT_DIR$/../../../../Program Files/mysql-connector-j-8.0.33/mysql-connector-j-8.0.33.jar" />
+          <element id="library" level="module" name="JUnit4" module-name="JavaWebMoiveDB" />
+          <element id="library" level="project" name="fasterxml.jackson.core.annotations" />
+          <element id="library" level="project" name="jackson-annotations-2.12.6" />
+          <element id="library" level="project" name="fasterxml.jackson.core.databind" />
+          <element id="library" level="project" name="jackson-annotations-2.15.3" />
+        </element>
+      </element>
+      <element id="javaee-facet-resources" facet="JavaWebMoiveDB/web/Web" />
+    </root>
+  </artifact>
+</component>
