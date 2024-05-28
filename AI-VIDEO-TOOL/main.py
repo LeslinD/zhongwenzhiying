@@ -17,8 +17,8 @@ from PIL import Image, ImageTk, ImageDraw
 token = ''
 trans_token = ''
 baiduID = ''
-API_KEY = ''
-SECRET_KEY = ''
+API_KEY = 'mh82eBZsHARlV6DOsTW2x4x4'
+SECRET_KEY = '3dalBxwaOHkqG6yDRsLi4L5hhiHNo6ZT'
 DEV_PID = 80001
 ASR_URL = 'http://vop.baidu.com/pro_api'
 SCOPE = 'brain_enhanced_asr'  # 有此scope表示有极速版能力，没有请在网页里开通极速版
@@ -146,8 +146,8 @@ def fetch_token():
 def fetch_token_trans():
     TOKEN_URL = 'http://aip.baidubce.com/oauth/2.0/token'
     params = {'grant_type': 'client_credentials',
-              'client_id': '',
-              'client_secret': ''}
+              'client_id': 'Ne8GNCd1piCYzRZ0yoOWeLAa',
+              'client_secret': 'mm342PItcm5xwIgVUrFJJbhGxHelCppB'}
     post_data = urlencode(params)
     post_data = post_data.encode('utf-8')
     req = Request(TOKEN_URL, post_data)
@@ -215,6 +215,7 @@ class TranslateThread(threading.Thread):
                 break
             else:
                 input_device_index = 0
+        # print(input_device_index)
         stream = p.open(format=FORMAT,
                         channels=CHANNELS,
                         rate=RATE,
@@ -239,14 +240,18 @@ class TranslateThread(threading.Thread):
                     if idle_time > 400 or (recording_started and int(time.time() * 1000) - start_time > 4000):
                         continue_recording = False
                         recording_started = False
+                        # print("out")
                 if recording_started:
+                    # print(data)
                     for i in range(0, len(data), 1000):
                         recorded_audio.extend(data)
                 else:
                     time.sleep(0.1)
                 time_counter += 1
+            # print(len(recorded_audio))
             if len(recorded_audio) > 0:
                 Chinesestr = asr(recorded_audio)
+                # print("Chinesestr:"+Chinesestr)
                 if (Chinesestr!=''):
                     Engstr = baidu_translate(Chinesestr)
                     text_updator(Chinesestr + '\n' + Engstr)
