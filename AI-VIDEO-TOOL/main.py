@@ -1,4 +1,7 @@
 import tkinter as tk
+import webbrowser
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
 import threading
 import pyautogui
 import requests
@@ -14,6 +17,7 @@ import numpy as np
 import time
 from io import BytesIO
 from PIL import Image, ImageTk, ImageDraw
+import httpx
 token = ''
 trans_token = ''
 baiduID = ''
@@ -24,7 +28,11 @@ ASR_URL = 'http://vop.baidu.com/pro_api'
 SCOPE = 'brain_enhanced_asr'  # 有此scope表示有极速版能力，没有请在网页里开通极速版
 client = OpenAI(
     base_url="https://hk.xty.app/v1",
-    api_key="",
+    api_key="sk-zS65xUguCnl0IdO6Cd5067A14dFd4b76A25dFaB93fCb33Aa",
+    http_client=httpx.Client(
+        base_url="https://api.xty.app/v1",
+        follow_redirects=True,
+    ),
 )
 start_x = None
 start_y = None
@@ -110,6 +118,7 @@ def create_transparent_window(parent):
     # 更新窗口中的文字内容
     def update_text(new_text):
         label_var.set(new_text)
+
     text_window = window
     # 返回更新文字内容的函数
     return update_text
@@ -444,31 +453,169 @@ def end_select(event):
     t.start()
 
 
+def on_entry_click(event):
+    if user_input.get() == 'Wait for typing...':
+        user_input.delete(0, "end")  # 删除默认的提示文字
+        user_input.config(fg="black")  # 修改文本颜色
+
+
+def on_focus_out(event):
+    if user_input.get() == '':
+        user_input.insert(0, "Wait for typing...")  # 如果没有输入内容则显示默认提示文字
+        user_input.config(fg="grey")  # 修改文字颜色为灰色
+
+
+def show_main_page():
+    sub_frame.pack_forget()  # 隐藏子界面
+    main_frame.pack(fill=tk.BOTH, expand=True)  # 显示主界面
+
+
+def show_sub_page1():
+    main_frame.pack_forget()  # 隐藏主界面
+    sublabel.configure(text="\n识图解析 | Identifying\n")
+
+    sub_frame.pack(fill=tk.BOTH, expand=True)  # 显示子界面
+    user_input.pack_forget()
+    button_frame.pack_forget()
+    take_screenshot()
+
+
+def show_sub_page2():
+    toggle_thread()
+
+
+def show_sub_page3():
+    main_frame.pack_forget()  # 隐藏主界面
+    sublabel.configure(text="\n智能问答 | Ask Anything\n")
+    sub_frame.pack(fill=tk.BOTH, expand=True)  # 显示子界面
+    chat_box.config(state=tk.NORMAL)
+    chat_box.delete(1.0, tk.END)
+    chat_box.config(state=tk.DISABLED)
+    user_input.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    send_button.pack(side=tk.LEFT)
+    button_frame.pack()
+
+
+def openurl():
+    webbrowser.open_new_tab("https://github.com/LeslinD/zhongwenzhiying")
+
+
+# 创建全局变量
+text_box = None
 text_window = None
 text_updator = None
 # 创建主窗口
 root = tk.Tk()
 root.title("中文智影")
-# 创建聊天记录框
-scrollbar = tk.Scrollbar(root)
-scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-chat_box = tk.Text(root, height=20, width=50, state=tk.DISABLED,yscrollcommand=scrollbar.set)
-chat_box.pack()
-# 创建消息输入框
-user_input = tk.Entry(root, width=50)
-user_input.pack()
-button_frame = tk.Frame(root)
-button_frame.pack()
-# 创建发送按钮
-send_button = tk.Button(button_frame, text="发送文字问AI", command=send_message)
-send_button.pack(side=tk.LEFT, padx=5)
-# 创建截屏按钮
-screenshot_button = tk.Button(button_frame, text="截屏问AI", command=take_screenshot)
-screenshot_button.pack(side=tk.LEFT, padx=5)
-is_thread_running = False
-start_button = tk.Button(button_frame, text="同声传译", command=toggle_thread)
-start_button.pack(side=tk.LEFT, padx=5)
+root.geometry("700x900")
 
+style = ttk.Style()
+
+main_frame = ttk.Frame(root)
+
+# 从文件加载图片
+image = Image.open("res/logo.png")
+# 调整图片大小
+image = image.resize((400, 126), Image.LANCZOS)
+# 创建Tkinter PhotoImage对象
+photo = ImageTk.PhotoImage(image)
+# 在标签中显示图片
+mainlabel = tk.Label(main_frame, image=photo)
+mainlabel.pack(fill=tk.BOTH)
+
+style.configure('My.TFrame', background='#FFD6D4')
+style.configure("My.TLabel", background="#E25148")  # 设置标签的背景颜色
+style.configure('My.TButton', padding=(20, 20), background="#E25148", borderwidth=0,
+                font=("微软雅黑", 20, "bold"))  # 设置按钮的字体为Helvetica，大小为12
+style.configure('My2.TButton', padding=(20, 20), background="#FFD6D4", borderwidth=0,
+                font=("微软雅黑", 20, "bold"))  # 设置按钮的字体为Helvetica，大小为12
+style.map("My2.TButton",
+          background=[('active', '#FFD6D4')])
+
+main_frame_sub = ttk.Frame(main_frame, style='My.TFrame')
+
+tlabel = ttk.Label(main_frame_sub, text="中华文化智能影视助手", anchor="center", background="#FFD6D4",
+                   foreground="black", font=("优设标题黑", 28, "normal"), padding=(0, 60, 0, 10))
+tlabel.pack(fill=tk.BOTH)
+
+tlabel2 = ttk.Label(main_frame_sub, text="CHINESE CULTURE INTELLIGENT\n              VIDEO ASSISTANT", anchor="center",
+                    background="#FFD6D4", foreground="black", font=("Arial", 20, "italic"), padding=(0, 0, 0, 40))
+tlabel2.pack(fill=tk.BOTH)
+
+main_button1 = ttk.Button(main_frame_sub, text="截图识别 | Screenshot Identifying", command=show_sub_page1,
+                          style="My.TButton")
+main_button1.pack(fill=tk.BOTH, pady=10)
+
+start_button = ttk.Button(main_frame_sub, text="同声传译 | Video Interpretation ", command=show_sub_page2,
+                          style="My.TButton")
+start_button.pack(fill=tk.BOTH, pady=10)
+
+main_button3 = ttk.Button(main_frame_sub, text="智能问答 |     Ask Anything     ", command=show_sub_page3,
+                          style="My.TButton")
+main_button3.pack(fill=tk.BOTH, pady=10)
+
+main_button4 = ttk.Button(main_frame_sub, text="       关于我们 | ABOUT US       ", command=openurl,
+                          style="My2.TButton")
+main_button4.pack(side=tk.BOTTOM, fill=tk.BOTH, pady=10)
+
+main_frame_sub.pack(fill=tk.BOTH, expand=True)
+
+## 子界面
+sub_frame = ttk.Frame(root)
+
+sublabel = ttk.Label(sub_frame, text="", style="My.TLabel", font=("微软雅黑", 14, "bold"))
+sublabel.config(anchor="center", foreground="white")
+sublabel.pack(fill=tk.BOTH)
+
+# 创建框架
+frame = tk.Frame(sub_frame)
+frame.pack(fill=tk.BOTH, expand=True)
+
+# 创建垂直滚动条
+vertical_scrollbar = tk.Scrollbar(frame)
+vertical_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+# 创建横向滚动条
+horizontal_scrollbar = tk.Scrollbar(frame, orient=tk.HORIZONTAL)
+horizontal_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
+
+# 创建文本框
+chat_box = tk.Text(frame, width=57, state=tk.DISABLED, yscrollcommand=vertical_scrollbar.set,
+                   xscrollcommand=horizontal_scrollbar.set)
+chat_box.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+# 配置垂直滚动条和文本框的联动
+vertical_scrollbar.config(command=chat_box.yview)
+# 配置横向滚动条和文本框的联动
+horizontal_scrollbar.config(command=chat_box.xview)
+
+# 创建消息输入框
+user_input = tk.Entry(sub_frame, width=50, highlightbackground="blue", highlightcolor="blue", font=("黑体", 12))
+user_input.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+user_input.insert(0, "Wait for typing...")
+user_input.config(fg="grey")  # 设置默认文字的颜色为灰色
+user_input.bind('<FocusIn>', on_entry_click)
+user_input.bind('<FocusOut>', on_focus_out)
+
+button_frame = tk.Frame(sub_frame)
+button_frame.pack()
+
+# 创建发送按钮
+send_button = tk.Button(button_frame, text="Ask Ying", command=send_message)
+send_button.pack(side=tk.LEFT)
+
+# 将按钮的背景色设置为透明
+style.configure("White.TButton", background="white", borderwidth=0)  # 设置按钮背景颜色为白色
+style.map("White.TButton",
+          background=[('active', 'white')])
+
+image = tk.PhotoImage(file="res/home_logo.png")
+scaled_image = image.subsample(10, 10)  # 调整按钮图片大小
+btn = ttk.Button(sub_frame, text="HOME", image=scaled_image, style="White.TButton", takefocus=0, command=show_main_page)
+btn.place(relx=1, rely=1, x=-50, y=-100, anchor="se")  # 将按钮放置在窗口的右下角
+
+main_frame.pack(fill=tk.BOTH, expand=True)
+is_thread_running = False
 
 if __name__ == "__main__":
     token = fetch_token()
