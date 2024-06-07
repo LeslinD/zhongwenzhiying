@@ -24,7 +24,7 @@ ASR_URL = 'http://vop.baidu.com/pro_api'
 SCOPE = 'brain_enhanced_asr'  # 有此scope表示有极速版能力，没有请在网页里开通极速版
 client = OpenAI(
     base_url="https://hk.xty.app/v1",
-    api_key="",
+    api_key="sk-zS65xUguCnl0IdO6Cd5067A14dFd4b76A25dFaB93fCb33Aa",
 )
 start_x = None
 start_y = None
