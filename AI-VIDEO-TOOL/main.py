@@ -18,6 +18,10 @@ import time
 from io import BytesIO
 from PIL import Image, ImageTk, ImageDraw
 import httpx
+
+import websocket
+import logging
+
 token = ''
 trans_token = ''
 baiduID = ''
@@ -38,35 +42,206 @@ start_x = None
 start_y = None
 draw = None
 
+# 此处是实时翻译配置
+
+user_config = {
+    "app_id": "75689767",
+    "app_key": "Ne8GNCd1piCYzRZ0yoOWeLAa",
+}
+
+business_config = {
+    "asr_url": "wss://aip.baidubce.com/ws/realtime_speech_trans",
+    "start_frame": {
+        "type": "START",
+        "from": "zh",
+        "to": "en",
+        "sampling_rate": 16000,
+        # "return_target_tts": False,
+        # "tts_speaker": "man",
+        "app_id": user_config["app_id"],
+        "app_key": user_config["app_key"],
+    },
+    "finish_frame": {
+        "type": "FINISH"
+    }
+}
+logger = logging.getLogger()
+
+"""
+1. 连接 ws_app.run_forever()
+2. 连接成功后发送数据 on_open()
+2.1 发送开始参数帧 send_start_params()
+2.2 发送音频数据帧 send_audio()
+2.3 库接收识别结果 on_message()
+2.4 发送结束帧 send_finish()
+3. 关闭连接 on_close()
+库的报错 on_error()
+"""
+
+
+def send_start_params(ws):
+    """
+    发送开始帧
+    :param ws:
+    :return:
+    """
+    body = json.dumps(business_config.get("start_frame"))
+    ws.send(body, websocket.ABNF.OPCODE_TEXT)
+    logger.info("send START frame with params:" + body)
+
+
+def send_audio(ws, data):
+    """
+    发送二进制音频数据，注意每个帧之间需要有间隔时间
+    :param ws:
+    :param data:
+    :return:
+    """
+    # audio_file = user_config.get("asr_file")
+    chunk_ms = 40  # 每40ms音频打包成一个数据帧
+    audio_rate = 16000  # 音频采样率
+    chunk_len = int(audio_rate * 2 / 1000 * chunk_ms)
+    # with open(audio_file, 'rb') as f:
+    #     audio_binary = f.read()
+
+    index = 0
+    total = len(data)
+    logger.info("send_audio total={}".format(total))
+    while index < total:
+        end = index + chunk_len
+        if end >= total:
+            # 最后一个音频数据帧
+            end = total
+        body = data[index:end]
+        logger.debug("try to send audio length {}, from bytes [{},{})".format(len(body), index, end))
+        ws.send(body, websocket.ABNF.OPCODE_BINARY)
+        index = end
+        time.sleep(chunk_ms / 1000.0)  # ws.send 也有点耗时，这里没有计算
+
+
+def send_finish(ws):
+    """
+    发送结束帧
+    :param ws:
+    :return:
+    """
+    body = json.dumps(business_config.get("finish_frame"))
+    ws.send(body, websocket.ABNF.OPCODE_TEXT)
+    logger.info("send FINISH frame")
+
+
+def on_open(ws):
+    """
+    连接后发送数据帧
+    :param ws:
+    :return:
+    """
+
+    def run(*args):
+        send_start_params(ws)
+        # send_audio(ws)
+        # send_finish(ws)
+        # while True:
+        #     time.sleep(20)  # 每 30 秒发送一次心跳
+        #     ws.send(json.dumps({"type": "ping"}), websocket.ABNF.OPCODE_TEXT)
+        #     logger.info("Sent ping")
+
+    threading.Thread(target=run).start()
+
+
+def on_data(ws, *args):
+    """
+    接收服务端返回的消息
+    :param ws:
+    :param args: args[0] is content
+    :return:
+    """
+    if isinstance(args[0], str):
+        global text_updator
+        # text_updator(args[0].json().get('result').get("trans_result")[0]['dst'] + '\n' + Engstr)
+        logger.info("Response: " + args[0])
+        try:
+            data = json.loads(args[0])
+            status = data.get('data', {}).get('status', "")
+
+            if status == "TRN":
+                result = data.get('data', {}).get('result', {})
+
+                asr = result.get('asr', "")
+                asr_trans = result.get('asr_trans', "")
+                sentence = result.get('sentence', "")
+                sentence_trans = result.get('sentence_trans', "")
+
+                if asr:
+                    logger.info(f"ASR: {asr}, ASR Trans: {asr_trans}")
+                    text_updator(asr + '\n' + asr_trans)
+                else:
+                    logger.info(f"Sentence: {sentence}, Sentence Trans: {sentence_trans}")
+                    text_updator(sentence + '\n' + sentence_trans)
+            else:
+                logger.info("Status is not TRN, no data to process")
+        except json.JSONDecodeError:
+            logger.error("Failed to decode JSON response")
+
+
+def on_error(ws, error):
+    """
+    ws库报错, 比如连接超时
+    :param ws:
+    :param error:
+    :return:
+    """
+    logger.error("error: " + str(error))
+
+
+def on_close(ws, close_status_code, close_msg):
+    """
+    Websocket关闭
+    :param close_msg:
+    :param close_status_code:
+    :param ws:
+    :return:
+    """
+    # if len(resp_audio_binary) > 0:
+    #     # save tts audio
+    #     save_tts_audio()
+    logger.info("ws close: close_status_code={}, close_msg={}".format(close_status_code, close_msg))
+
+
+def ws_task(ws_app):
+    # 运行 WebSocket 连接
+    ws_app.run_forever()
+
 
 def vision_pic(btarr):
     base64_image = base64.b64encode(btarr).decode('utf-8')
     headers = {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer "
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + client.api_key
     }
     payload = {
-      "model": "gpt-4-vision-preview",
-      "messages": [
-        {
-          "role": "user",
-          "content": [
+        "model": "gpt-4-vision-preview",
+        "messages": [
             {
-              "type": "text",
-              "text": "用中文告诉我，这张图片是否有什么中国特色的东西？有哪些地方与中国相关？"
-            },
-            {
-              "type": "image_url",
-              "image_url": {
-                "url": f"data:image/jpeg;base64,{base64_image}"
-              }
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Is there something Chinese about this picture? What are the places related to China?"
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64_image}"
+                        }
+                    }
+                ]
             }
-          ]
-        }
-      ],
-      "max_tokens": 300
+        ],
+        "max_tokens": 300
     }
     response = requests.post("https://oneapi.xty.app/v1/chat/completions", headers=headers, json=payload)
+    # print(response)
     bot_send_message(response.json().get('choices')[0].get('message').get('content'))
 
 
@@ -91,6 +266,7 @@ def center_window(window, width, height):
     x = (screen_width - width) // 2
     y = (screen_height - height - 80)
     window.geometry(f'{width}x{height}+{x}+{y}')
+
 
 def create_transparent_window(parent):
     global text_window
@@ -177,11 +353,12 @@ def fetch_token_trans():
     else:
         raise DemoError('MAYBE API_KEY or SECRET_KEY not correct: access_token or scope not found in token response')
 
+
 def asr(frames):
     global token
     length = len(frames)
     params = {'cuid': '123456PYTHON', 'token': token, 'dev_pid': DEV_PID}
-    params_query = urlencode(params);
+    params_query = urlencode(params)
     headers = {
         'Content-Type': 'audio/' + 'wav' + '; rate=' + str(16000),
         'Content-Length': length
@@ -195,17 +372,16 @@ def asr(frames):
     return ''
 
 
-
 class TranslateThread(threading.Thread):
-    def __init__(self):
+    def __init__(self, ws_app):
         super().__init__()
+        self.ws_app = ws_app
         self._is_running = False
-
 
     def run(self):
         global text_updator
         self._is_running = True
-        minimum_volume = 2000  # 最小声音，大于则开始录音，否则结束
+        minimum_volume = 1000  # 最小声音，大于则开始录音，否则结束
         recording_started = False  # 开始录音节点
         continue_recording = True  # 判断是否继续录音
         low_volume_detected = False  # 判断声音小了
@@ -244,9 +420,10 @@ class TranslateThread(threading.Thread):
                         print("开始录音")
                         start_time = int(time.time() * 1000)
                     detected_time = int(time.time() * 1000)
-                elif max_volume <= minimum_volume or (recording_started and int(time.time() * 1000) - start_time > 4000):
+                elif max_volume <= minimum_volume or (
+                        recording_started and int(time.time() * 1000) - start_time > 1500):
                     idle_time = int(time.time() * 1000) - detected_time
-                    if idle_time > 400 or (recording_started and int(time.time() * 1000) - start_time > 4000):
+                    if idle_time > 400 or (recording_started and int(time.time() * 1000) - start_time > 1500):
                         continue_recording = False
                         recording_started = False
                         # print("out")
@@ -255,17 +432,23 @@ class TranslateThread(threading.Thread):
                     for i in range(0, len(data), 1000):
                         recorded_audio.extend(data)
                 else:
-                    time.sleep(0.1)
+                    time.sleep(0.01)
                 time_counter += 1
             # print(len(recorded_audio))
             if len(recorded_audio) > 0:
-                Chinesestr = asr(recorded_audio)
-                # print("Chinesestr:"+Chinesestr)
-                if (Chinesestr!=''):
-                    Engstr = baidu_translate(Chinesestr)
-                    text_updator(Chinesestr + '\n' + Engstr)
-                print(Chinesestr)
+                send_audio(self.ws_app, recorded_audio)
+                # asr_time=int(time.time() * 1000)
+                # Chinesestr = asr(recorded_audio)
+
+                # print(int(time.time() * 1000) - asr_time)
+                # asr_time = int(time.time() * 1000)
+                # if (Chinesestr != ''):
+                #     Engstr = baidu_translate(Chinesestr)
+                #     text_updator(Chinesestr + '\n' + Engstr)
+                # print(Chinesestr)
+                # print(int(time.time() * 1000) - asr_time)
             continue_recording = True
+        send_finish(self.ws_app)
         stream.stop_stream()
         stream.close()
         p.terminate()
@@ -291,7 +474,15 @@ def start_thread():
     global my_thread
     global text_updator
     text_updator = create_transparent_window(root)
-    my_thread = TranslateThread()
+    # 创建 WebSocketApp 实例
+    ws_app = websocket.WebSocketApp(business_config.get("asr_url"),
+                                    on_open=on_open,
+                                    on_message=on_data,
+                                    on_error=on_error,
+                                    on_close=on_close)
+    ws_thread = threading.Thread(target=ws_task, args=(ws_app,))
+    ws_thread.start()
+    my_thread = TranslateThread(ws_app)
     my_thread.start()
 
 
@@ -321,7 +512,7 @@ def ask_ai(content):
     collected_messages = []
     for chunk in completion:
         if chunk.choices[0].delta.content is None:
-            break;
+            break
         collected_messages.append(chunk.choices[0].delta.content)
         chat_box.insert(tk.END, chunk.choices[0].delta.content)
         root.update_idletasks()
@@ -344,8 +535,8 @@ def send_message():
         # 启动线程
         ai_thread.start()
         # 等待线程结束
-        #ai_thread.join()
-        #ask_ai(message)
+        # ai_thread.join()
+        # ask_ai(message)
 
 
 def bot_send_message(message):
@@ -376,8 +567,9 @@ def add_overlay(image_path, alpha=128, x1=None, x2=None, y1=None, y2=None):
     img = Image.alpha_composite(img, overlay)
     return img
 
+
 def update_overlay(event):
-    global img_tk, img, label, overlay_image,overlay_photo
+    global img_tk, img, label, overlay_image, overlay_photo
     global start_x, start_y
     if start_x < event.x:
         x1 = start_x
@@ -397,7 +589,8 @@ def update_overlay(event):
 
     # 更新Label的图像
     label.config(image=img_tk)
-    #label.image = overlay_photo  # 需要保存对图片对象的引用，否则会被垃圾回收
+    # label.image = overlay_photo  # 需要保存对图片对象的引用，否则会被垃圾回收
+
 
 def show_screenshot(image_path):
     # 添加半透明蒙版
@@ -424,16 +617,18 @@ def show_screenshot(image_path):
     # 保持窗口显示
     fullscreen_window.mainloop()
 
+
 def start_select(event):
     global start_x, start_y
     start_x = event.x
     start_y = event.y
 
+
 def end_select(event):
     global start_x, start_y
     end_x = event.x
     end_y = event.y
-   # print("Selected Area: ", (start_x, start_y), "-", (end_x, end_y))
+    # print("Selected Area: ", (start_x, start_y), "-", (end_x, end_y))
     event.widget.master.destroy()  # 关闭全屏窗口
 
     # 截取选定区域
@@ -622,4 +817,8 @@ if __name__ == "__main__":
     trans_token = fetch_token_trans()
     print(token, trans_token)
     print(baidu_translate('你好'))
+    logging.basicConfig(format='[%(asctime)-15s] [%(funcName)s()][%(levelname)s] %(message)s')
+    logger.setLevel(logging.INFO)
+    logger.info("begin")
+    logger.info("uri is " + business_config.get("asr_url"))
     root.mainloop()
