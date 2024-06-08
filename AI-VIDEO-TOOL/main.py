@@ -208,9 +208,17 @@ def on_close(ws, close_status_code, close_msg):
     logger.info("ws close: close_status_code={}, close_msg={}".format(close_status_code, close_msg))
 
 
-def ws_task(ws_app):
+def is_connected(ws):
+    """
+    检查 WebSocket 是否连接
+    :param ws:
+    :return: bool
+    """
+    return ws.sock and ws.sock.connected
+
+def ws_task(ws):
     # 运行 WebSocket 连接
-    ws_app.run_forever()
+    ws.run_forever()
 
 
 def vision_pic(btarr):
@@ -373,13 +381,15 @@ def asr(frames):
 
 
 class TranslateThread(threading.Thread):
-    def __init__(self, ws_app):
+    def __init__(self):
         super().__init__()
-        self.ws_app = ws_app
         self._is_running = False
 
     def run(self):
         global text_updator
+        global ws_app
+        ws_thread = threading.Thread(target=ws_task, args=(ws_app,))
+        ws_thread.start()
         self._is_running = True
         minimum_volume = 1000  # 最小声音，大于则开始录音，否则结束
         recording_started = False  # 开始录音节点
@@ -421,9 +431,9 @@ class TranslateThread(threading.Thread):
                         start_time = int(time.time() * 1000)
                     detected_time = int(time.time() * 1000)
                 elif max_volume <= minimum_volume or (
-                        recording_started and int(time.time() * 1000) - start_time > 1500):
+                        recording_started and int(time.time() * 1000) - start_time > 3000):
                     idle_time = int(time.time() * 1000) - detected_time
-                    if idle_time > 400 or (recording_started and int(time.time() * 1000) - start_time > 1500):
+                    if idle_time > 400 or (recording_started and int(time.time() * 1000) - start_time > 3000):
                         continue_recording = False
                         recording_started = False
                         # print("out")
@@ -436,7 +446,12 @@ class TranslateThread(threading.Thread):
                 time_counter += 1
             # print(len(recorded_audio))
             if len(recorded_audio) > 0:
-                send_audio(self.ws_app, recorded_audio)
+                if not is_connected(ws_app):
+                    ws_thread = threading.Thread(target=ws_task, args=(ws_app,))
+                    ws_thread.start()
+                    time.sleep(0.5)
+                    print("reconnect")
+                send_audio(ws_app, recorded_audio)
                 # asr_time=int(time.time() * 1000)
                 # Chinesestr = asr(recorded_audio)
 
@@ -448,7 +463,8 @@ class TranslateThread(threading.Thread):
                 # print(Chinesestr)
                 # print(int(time.time() * 1000) - asr_time)
             continue_recording = True
-        send_finish(self.ws_app)
+
+        send_finish(ws_app)
         stream.stop_stream()
         stream.close()
         p.terminate()
@@ -473,6 +489,7 @@ def toggle_thread():
 def start_thread():
     global my_thread
     global text_updator
+    global ws_app
     text_updator = create_transparent_window(root)
     # 创建 WebSocketApp 实例
     ws_app = websocket.WebSocketApp(business_config.get("asr_url"),
@@ -480,9 +497,7 @@ def start_thread():
                                     on_message=on_data,
                                     on_error=on_error,
                                     on_close=on_close)
-    ws_thread = threading.Thread(target=ws_task, args=(ws_app,))
-    ws_thread.start()
-    my_thread = TranslateThread(ws_app)
+    my_thread = TranslateThread()
     my_thread.start()
 
 
@@ -699,6 +714,7 @@ def openurl():
 text_box = None
 text_window = None
 text_updator = None
+ws_app = None
 # 创建主窗口
 root = tk.Tk()
 root.title("中文智影")
